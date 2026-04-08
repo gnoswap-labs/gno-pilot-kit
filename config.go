@@ -24,23 +24,7 @@ type Config struct {
 	GnoswapTests    string `toml:"gnoswap_tests"`
 	AdminOldAddress string `toml:"admin_old_address"`
 	AdminNewAddress string `toml:"admin_new_address"`
-	RPCUrl          string `toml:"rpc_url"`
-	ChainID         string `toml:"chain_id"`
 	Peers           []Peer `toml:"peers"`
-}
-
-func (c Config) rpcUrl() string {
-	if c.RPCUrl != "" {
-		return c.RPCUrl
-	}
-	return "localhost:26657"
-}
-
-func (c Config) chainID() string {
-	if c.ChainID != "" {
-		return c.ChainID
-	}
-	return "dev"
 }
 
 // loadConfig reads pilot.toml from the current directory.
