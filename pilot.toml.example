@@ -1,0 +1,25 @@
+# Copy this file to pilot.toml and fill in your local paths.
+# pilot.toml is gitignored — each user configures their own.
+
+# Path to the gno repository root (where go.work is located)
+gno_root = "/path/to/gno"
+
+# Path to the gnoswap tests directory
+gnoswap_tests = "/path/to/gnoswap/tests"
+
+# Admin address for patching gnoswap contracts
+admin_old_address = ""
+admin_new_address = ""
+
+# Persistent peers (validators to connect to and add to genesis).
+# Each [[peers]] block is one peer. Add as many as needed.
+#
+# [[peers]]
+# id      = "nodeID@ip:port"   # P2P connection string
+# pub_key = ""                  # validator public key (for genesis validators)
+# address = ""                  # wallet address (for genesis balances)
+#
+# [[peers]]
+# id      = "nodeID@ip:port"
+# pub_key = ""
+# address = ""
