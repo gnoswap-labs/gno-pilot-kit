@@ -13,9 +13,9 @@ const configFileName = "pilot.toml"
 
 // Peer holds information about a validator peer node.
 type Peer struct {
-	ID      string `toml:"id"`       // node ID for P2P (nodeID@ip:port)
-	PubKey  string `toml:"pub_key"`  // validator public key (for genesis)
-	Address string `toml:"address"`  // wallet address (for genesis balances)
+	ID      string `toml:"id"`      // node ID for P2P (nodeID@ip:port)
+	PubKey  string `toml:"pub_key"` // validator public key (for genesis)
+	Address string `toml:"address"` // wallet address (for genesis balances)
 }
 
 // Config holds the pilot.toml configuration.
