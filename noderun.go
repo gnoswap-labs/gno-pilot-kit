@@ -122,43 +122,24 @@ func startNode(nodeDir, genesisPath string) {
 }
 
 func resetNode(nodeDir string) {
-	dbDir := filepath.Join(nodeDir, "db")
-	walDir := filepath.Join(nodeDir, "wal")
-	stateFile := filepath.Join(nodeDir, "secrets", "priv_validator_state.json")
-
 	fmt.Println("=== Reset node ===")
 	fmt.Println()
-	fmt.Printf("  db dir    : %s\n", dbDir)
-	fmt.Printf("  wal dir   : %s\n", walDir)
-	fmt.Printf("  state file: %s\n", stateFile)
+	fmt.Printf("  node dir: %s\n", nodeDir)
 	fmt.Println()
 
-	confirm := prompt("Reset? This will delete all block data. (y/n)", "y")
-	if confirm == "n" {
+	confirm := prompt("Reset? This will delete the entire node directory. (y/n)", "n")
+	if confirm != "y" {
 		fmt.Println("Cancelled.")
 		return
 	}
 
-	if err := os.RemoveAll(dbDir); err != nil {
-		fmt.Fprintf(os.Stderr, "error removing db: %v\n", err)
+	if err := os.RemoveAll(nodeDir); err != nil {
+		fmt.Fprintf(os.Stderr, "error removing node dir: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("  ✓ db removed")
-
-	if err := os.RemoveAll(walDir); err != nil {
-		fmt.Fprintf(os.Stderr, "error removing wal: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println("  ✓ wal removed")
-
-	state := []byte(`{"height":"0","round":"0","step":0}`)
-	if err := os.WriteFile(stateFile, state, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "error writing state file: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println("  ✓ priv_validator_state.json reset to height 0")
+	fmt.Printf("  ✓ %s removed\n", nodeDir)
 	fmt.Println()
-	fmt.Println("Node reset complete. You can now start the node from block 1.")
+	fmt.Println("Node reset complete. Run option 1 to reinitialize.")
 }
 
 func setupNode(nodeDir string, cfg Config) {
@@ -209,7 +190,7 @@ func setupNode(nodeDir string, cfg Config) {
 	genesis := loadRootGenesis()
 	genesis["chain_id"] = chainID
 	genesis["genesis_time"] = "2024-01-01T00:00:00Z"
-	genesis["validators"] = []map[string]any{
+	validators := []map[string]any{
 		{
 			"address": myKey.Address,
 			"pub_key": map[string]string{
@@ -220,6 +201,21 @@ func setupNode(nodeDir string, cfg Config) {
 			"name":  myName,
 		},
 	}
+	for i, p := range cfg.Peers {
+		if p.PubKey != "" && p.Address != "" {
+			validators = append(validators, map[string]any{
+				"address": p.Address,
+				"pub_key": map[string]string{
+					"@type": "/tm.PubKeyEd25519",
+					"value": p.PubKey,
+				},
+				"power": "10",
+				"name":  fmt.Sprintf("peer-%d", i+1),
+			})
+			fmt.Printf("  ✓ added peer validator: %s\n", p.Address)
+		}
+	}
+	genesis["validators"] = validators
 
 	writeGenesis(genesisPath, genesis)
 	fmt.Printf("  ✓ genesis saved: %s\n", genesisPath)

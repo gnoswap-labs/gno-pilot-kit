@@ -27,9 +27,18 @@ func runDryTest(cfg Config, nodeDir string) {
 	fmt.Println("  5. Deploy packages (make deploy ENV=local)")
 	fmt.Println()
 
-	// Step 1: update default.mk
-	mkPath := filepath.Join(cfg.GnoswapTests, "scripts", "config", "default.mk")
-	updateAdminInMakefile(mkPath, cfg.AdminNewAddress)
+	// Step 1: update all .mk config files (default.mk, local.mk, etc.)
+	configDir := filepath.Join(cfg.GnoswapTests, "scripts", "config")
+	entries, err := os.ReadDir(configDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading config dir %s: %v\n", configDir, err)
+		os.Exit(1)
+	}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".mk") {
+			updateAdminInMakefile(filepath.Join(configDir, e.Name()), cfg.AdminNewAddress)
+		}
+	}
 
 	// Step 2: patch OLD_ADDRESS in the script, then run it with admin_new_address
 	scriptPath := filepath.Join(cfg.GnoswapTests, "scripts", "patch-admin-address.sh")
@@ -124,7 +133,10 @@ func updateAdminInMakefile(path, addr string) {
 	}
 
 	targets := map[string]bool{
-		"ADDR_ADMIN": true,
+		"ADDR_ADMIN":      true,
+		"ADDR_GNOSWAP":    true,
+		"ADDR_TEST":       true,
+		"ADDR_TEST_ADMIN": true,
 	}
 
 	lines := strings.Split(string(data), "\n")
