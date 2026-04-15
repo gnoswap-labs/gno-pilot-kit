@@ -39,6 +39,12 @@ func mustRun(args ...string) {
 	}
 }
 
+func runOutput(args ...string) (string, error) {
+	cmd := exec.Command(args[0], args[1:]...)
+	out, err := cmd.Output()
+	return string(out), err
+}
+
 func main() {
 	fmt.Println("=== gno-pilot-kit ===")
 	fmt.Println()
@@ -56,8 +62,9 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("1) Start node    (setup if not initialized, start if already set up)")
-	fmt.Println("2) Reset node    (delete db & reset validator state to block 1)")
+	fmt.Println("2) Reset node    (delete the entire node directory)")
 	fmt.Println("3) Dry-run test  (update admin address & run gnoswap patch script)")
+	fmt.Println("4) Node info     (show node ID, keys, wallet address, peer count)")
 	fmt.Println()
 	choice := prompt("Choice", "1")
 	fmt.Println()
@@ -71,6 +78,8 @@ func main() {
 		fmt.Println("Note: option 3 requires the node to be running. To start the node, select option 1.")
 		fmt.Println()
 		runDryTest(cfg, nodeDir)
+	case "4":
+		showNodeInfo(nodeDir)
 	default:
 		if _, err := os.Stat(genesisPath); err == nil {
 			fmt.Println("Existing node detected. Starting directly...")

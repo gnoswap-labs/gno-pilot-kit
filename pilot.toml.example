@@ -11,15 +11,13 @@ gnoswap_tests = "/path/to/gnoswap/tests"
 admin_old_address = ""
 admin_new_address = ""
 
-# Persistent peers (validators to connect to and add to genesis).
+# Persistent peers to connect to.
 # Each [[peers]] block is one peer. Add as many as needed.
 #
 # [[peers]]
-# id      = "nodeID@ip:port"   # P2P connection string
-# pub_key = ""                  # validator public key (for genesis validators)
-# address = ""                  # wallet address (for genesis balances)
+# node_p2p    = "nodeID@ip:port"  # P2P address (from: gno-pilot-kit → option 4 → P2P Address)
+# node_pubkey = ""                # node public key (from: gno-pilot-kit → option 4 → Node PubKey)
 #
 # [[peers]]
-# id      = "nodeID@ip:port"
-# pub_key = ""
-# address = ""
+# node_p2p    = "nodeID@ip:port"
+# node_pubkey = ""

@@ -11,11 +11,18 @@ import (
 
 const configFileName = "pilot.toml"
 
-// Peer holds information about a validator peer node.
+// Peer holds information about a peer node.
 type Peer struct {
-	ID      string `toml:"id"`      // node ID for P2P (nodeID@ip:port)
-	PubKey  string `toml:"pub_key"` // validator public key (for genesis)
-	Address string `toml:"address"` // wallet address (for genesis balances)
+	NodeP2P    string `toml:"node_p2p"`    // full P2P address (nodeID@ip:port)
+	NodePubKey string `toml:"node_pubkey"` // node public key
+}
+
+// ID returns the node ID portion of NodeP2P (the part before @).
+func (p Peer) ID() string {
+	if idx := strings.Index(p.NodeP2P, "@"); idx >= 0 {
+		return p.NodeP2P[:idx]
+	}
+	return p.NodeP2P
 }
 
 // Config holds the pilot.toml configuration.

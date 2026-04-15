@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -175,10 +177,8 @@ func setupNode(nodeDir string, cfg Config) {
 	fmt.Println()
 
 	// ── Step 3: Read validator key from secrets ──────────────────
-	fmt.Println("[3/6] Validator info:")
+	fmt.Println("[3/6] Validator info...")
 	myKey := readValidatorKey(secretsDir)
-	fmt.Printf("  address : %s\n", myKey.Address)
-	fmt.Printf("  pub_key : %s\n", myKey.PubKey.Value)
 	fmt.Println()
 
 	// ── Step 4: Write genesis ─────────────────────────────────────
@@ -190,32 +190,17 @@ func setupNode(nodeDir string, cfg Config) {
 	genesis := loadRootGenesis()
 	genesis["chain_id"] = chainID
 	genesis["genesis_time"] = "2024-01-01T00:00:00Z"
-	validators := []map[string]any{
-		{
-			"address": myKey.Address,
-			"pub_key": map[string]string{
-				"@type": "/tm.PubKeyEd25519",
-				"value": myKey.PubKey.Value,
-			},
-			"power": "10",
-			"name":  myName,
+	myValidator := map[string]any{
+		"address": myKey.Address,
+		"pub_key": map[string]string{
+			"@type": "/tm.PubKeyEd25519",
+			"value": myKey.PubKey.Value,
 		},
+		"power": "10",
+		"name":  myName,
 	}
-	for i, p := range cfg.Peers {
-		if p.PubKey != "" && p.Address != "" {
-			validators = append(validators, map[string]any{
-				"address": p.Address,
-				"pub_key": map[string]string{
-					"@type": "/tm.PubKeyEd25519",
-					"value": p.PubKey,
-				},
-				"power": "10",
-				"name":  fmt.Sprintf("peer-%d", i+1),
-			})
-			fmt.Printf("  ✓ added peer validator: %s\n", p.Address)
-		}
-	}
-	genesis["validators"] = validators
+
+	genesis["validators"] = []map[string]any{myValidator}
 
 	writeGenesis(genesisPath, genesis)
 	fmt.Printf("  ✓ genesis saved: %s\n", genesisPath)
@@ -228,8 +213,8 @@ func setupNode(nodeDir string, cfg Config) {
 	if len(cfg.Peers) > 0 {
 		peerIDs := make([]string, 0, len(cfg.Peers))
 		for _, p := range cfg.Peers {
-			if p.ID != "" {
-				peerIDs = append(peerIDs, p.ID)
+			if p.NodeP2P != "" {
+				peerIDs = append(peerIDs, p.NodeP2P)
 			}
 		}
 		if len(peerIDs) > 0 {
@@ -254,5 +239,79 @@ func setupNode(nodeDir string, cfg Config) {
 		fmt.Println()
 		fmt.Println("Start node manually:")
 		fmt.Printf("  gnoland start -data-dir %s -genesis %s -skip-failing-genesis-txs\n", nodeDir, genesisPath)
+	}
+}
+
+func showNodeInfo(nodeDir string) {
+	secretsDir := filepath.Join(nodeDir, "secrets")
+	configPath := filepath.Join(nodeDir, "config", "config.toml")
+
+	fmt.Println("=== Node Info ===")
+	fmt.Println()
+
+	// secrets
+	out, err := runOutput("gnoland", "secrets", "get", "-data-dir", secretsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading secrets: %v\n", err)
+		os.Exit(1)
+	}
+
+	var secrets struct {
+		ValidatorKey struct {
+			Address string `json:"address"`
+			PubKey  string `json:"pub_key"`
+		} `json:"validator_key"`
+		NodeID struct {
+			ID         string `json:"id"`
+			P2PAddress string `json:"p2p_address"`
+			PubKey     string `json:"pub_key"`
+		} `json:"node_id"`
+	}
+	if err := json.Unmarshal([]byte(out), &secrets); err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing secrets: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("  Node ID      : %s\n", secrets.NodeID.ID)
+	fmt.Printf("  P2P Address  : %s\n", secrets.NodeID.P2PAddress)
+	fmt.Printf("  Node PubKey  : %s\n", secrets.NodeID.PubKey)
+	fmt.Printf("  Val Address  : %s\n", secrets.ValidatorKey.Address)
+	fmt.Printf("  Val PubKey   : %s\n", secrets.ValidatorKey.PubKey)
+	fmt.Println()
+
+	// RPC address from config
+	rpcAddr := "localhost:26657"
+	if data, err := os.ReadFile(configPath); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "laddr") && strings.Contains(line, "26") {
+				// pick the rpc laddr (second occurrence in file)
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					addr := strings.Trim(strings.TrimSpace(parts[1]), `"`)
+					addr = strings.TrimPrefix(addr, "tcp://")
+					addr = strings.ReplaceAll(addr, "0.0.0.0", "localhost")
+					rpcAddr = addr
+				}
+			}
+		}
+	}
+
+	// peer count from RPC
+	resp, err := http.Get("http://" + rpcAddr + "/net_info")
+	if err != nil {
+		fmt.Printf("  Peers        : (node not running)\n")
+		return
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	var netInfo struct {
+		Result struct {
+			NPeers string `json:"n_peers"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(body, &netInfo); err == nil {
+		fmt.Printf("  Peers        : %s\n", netInfo.Result.NPeers)
 	}
 }
